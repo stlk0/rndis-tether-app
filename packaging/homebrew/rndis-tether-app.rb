@@ -5,7 +5,7 @@ class RndisTetherApp < Formula
   desc "Menu bar status for rndis-tether (Android USB tethering)"
   homepage "https://github.com/stlk0/rndis-tether-app"
   url "https://github.com/stlk0/rndis-tether-app/archive/refs/tags/v1.0.0.tar.gz"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  sha256 "b6b5248489fe06d8f890e62d5eeeb4ac2544d56024a1277e2fde8204979a0b44"
   license "MIT"
 
   depends_on macos: :ventura
