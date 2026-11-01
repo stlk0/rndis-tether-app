@@ -1,0 +1,50 @@
+name: Release
+
+# Pushing a tag vX.Y.Z builds and tests the app and creates a draft release with the archive
+# install.sh downloads: the app with rndis-tether inside. The release is published by hand; the
+# tag and its source archive are already public.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  # The rndis-tether release inside the app (ci.yml builds the same one).
+  DAEMON_TAG: v1.1.1
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: stlk0/rndis-tether
+          ref: ${{ env.DAEMON_TAG }}
+          path: build/daemon
+          persist-credentials: false
+      # The version comes from the tag (Homebrew reads it from the archive's URL), so the tag
+      # must be one that compareVersions reads, and the app must carry it.
+      - name: Tag is vX.Y.Z
+        run: echo "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'
+      - name: Tests
+        run: make test SWIFTFLAGS=-warnings-as-errors
+      - name: Build
+        run: make dist SWIFTFLAGS=-warnings-as-errors VERSION="${GITHUB_REF_NAME#v}" DAEMON_SRC=build/daemon
+      - name: The app carries the tag's version and rndis-tether
+        run: |
+          app="build/RNDIS Tether.app"
+          version=$(plutil -extract CFBundleShortVersionString raw -o - "$app/Contents/Info.plist")
+          test "v$version" = "$GITHUB_REF_NAME"
+          test "$("$app/Contents/Helpers/rndis-tether" version)" = "rndis-tether ${DAEMON_TAG#v}"
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --title "RNDIS Tether ${GITHUB_REF_NAME#v}" \
+            --notes "Install or update: see README. Archive SHA-256: $(cut -d' ' -f1 build/rndis-tether-app-macos.tar.gz.sha256)" \
+            build/rndis-tether-app-macos.tar.gz build/rndis-tether-app-macos.tar.gz.sha256
